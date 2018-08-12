@@ -17,7 +17,8 @@
 #pragma config CP = OFF         // FLASH Program Memory Code Protection bit (Code protection off)
 #pragma config BOREN = OFF      // Brown-out Reset Enable bit (BOR disabled)
 
-char counter = 0;
+unsigned char received = 0;
+__bit update;
 
 void Init(void) {
     //Configuration of pins. All are inputs except for the TX pin.
@@ -53,18 +54,33 @@ void Init(void) {
     RCSTAbits.CREN = 1;         //Enables continuous reception
     RCSTAbits.SPEN = 1;         //Serial port enabled
     
-    //Configuring interupts
-    TXIE = 1;                   //Serial transmission interrupt enable bit
+    //Configuring interrupts
+    RCIE = 1;                   //Serial reception interrupt enable bit
+    TXIE = 0;                   //Serial transmission interrupt enable bit
     PEIE = 1;                   //Peripheral interrupt enable bit
     GIE = 1;                    //Global interrupt enable bit
 }
 
 void __interrupt () tx (void) {
-    if (TXIF){
-        TXIF = 0;
-        TXREG = counter;
-        counter++;
-        //__delay_ms(1);
+    if (RCIF) {
+            RCIF = 0;
+            received = RCREG;
+            if ((received > 64) && (received < 91)){
+                received += 32;           
+            } 
+            else if (received > 96 && received < 123){
+                received -= 32;                        
+            }
+            else received = 33;
+            TXIE = 1;
+            update = 1; 
+        }
+    if (update){
+        if (TXIF) {
+            TXREG = received;
+            update = 0;
+            TXIE = 0;
+        }       
     }
 }
 
